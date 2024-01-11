@@ -54,6 +54,15 @@ class DatabaseApp:
                 FOREIGN KEY (tag_id) REFERENCES tags (tag_id)
             )
         ''' )
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS socials (
+                social_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                creator_id INTEGER,
+                social_handle TEXT,
+                social_type TEXT,
+                FOREIGN KEY (creator_id) REFERENCES creators (creator_id)
+            )
+        ''' )
 
         self.conn.commit()
 
@@ -269,6 +278,7 @@ class DatabaseApp:
         filename = self.entry_filename.get()
         creator_name = self.entry_creator.get()
         source = self.entry_source.get()
+        tags = [s.strip() for s in self.entry_image_tags.get().split(",")]
 
         # Check if name is a non-empty string
         if not creator_name:
@@ -290,10 +300,24 @@ class DatabaseApp:
             # Convert creator_id result to integer from tuple object
             id_result = id_result[0]
 
-            # Insert the data
+            # Insert the image data
             self.cursor.execute("INSERT INTO images (filename, creator_id, source_url) VALUES (?, ?, ?)", (filename, id_result, source))
 
             # Commit the change
+            self.conn.commit()
+
+        # Handling tag data only if a tag was submitted
+        if len(tags) > 0:
+            # Get image id for the entry we just submitted
+            self.cursor.execute("SELECT image_id from images WHERE filename = ? AND creator_id = ?", (filename, id_result))
+            image_id_result = self.cursor.fetchone()[0]
+            # Get the tag id
+            for tag in tags:
+                self.cursor.execute("SELECT tag_id from tags WHERE tag_name = ?", (tag,))
+                tag_id = self.cursor.fetchone()[0]
+                self.cursor.execute("INSERT INTO image_tags (image_id, tag_id) VALUES (?, ?)", (image_id_result, tag_id))
+                print((image_id_result, tag_id))
+            # Commit changes
             self.conn.commit()
 
         self.display_data(self.image_tree, "images")
