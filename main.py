@@ -1,6 +1,7 @@
 import sqlite3
 import tkinter as tk
 from tkinter import ttk, messagebox
+from ttkwidgets.autocomplete import AutocompleteEntry
 
 class DatabaseApp:
     def __init__(self, root):
@@ -97,11 +98,8 @@ class DatabaseApp:
         self.entry_filename = tk.Entry(self.tab_images)
 
         self.label_creator = tk.Label(self.tab_images, text="Creator")
-        self.entry_creator = tk.Entry(self.tab_images)
-
-        self.image_creator_label = tk.Label(self.tab_images, text="Creator Lookup")
-        self.image_creator_name_list = ttk.Combobox(self.tab_images, value=[" "])
-        self.entry_creator.bind('<KeyRelease>', self.check_image_creator_key)
+        self.entry_creator = AutocompleteEntry(self.tab_images,
+                                               completevalues=self.all_creators)
 
         self.label_source = tk.Label(self.tab_images, text="Source URL")
         self.entry_source = tk.Entry(self.tab_images)
@@ -123,9 +121,6 @@ class DatabaseApp:
         self.label_creator.grid(row=1, column=0, padx=10, pady=10)
         self.entry_creator.grid(row=1, column=1, padx=10, pady=10)
 
-        self.image_creator_label.grid(row=2, column=0, padx=10, pady=10)
-        self.image_creator_name_list.grid(row=2, column=1, padx=10, pady=10)
-
         self.label_source.grid(row=3, column=0, padx=10, pady=10)
         self.entry_source.grid(row=3, column=1, padx=10, pady=10)
 
@@ -145,7 +140,6 @@ class DatabaseApp:
         self.entry_creator_name = tk.Entry(self.tab_creators)
         self.label_creator_list = tk.Label(self.tab_creators, text="Suggestions")
         self.creator_name_list = ttk.Combobox(self.tab_creators, value=[" "])
-        self.entry_creator_name.bind('<KeyRelease>', self.check_creator_key)
 
         self.button_insert_creator = tk.Button(self.tab_creators, text="Insert Data", command=self.insert_creator_data)
         self.creator_tree = ttk.Treeview(self.tab_creators, columns=("creator_id", "creator"), show="headings")
@@ -351,37 +345,6 @@ class DatabaseApp:
     def init_lookup_lists(self):
         self.all_creators = [creator[0] for creator in self.cursor.execute("SELECT creator_name from creators")]
         self.all_tags = [tag[0] for tag in self.cursor.execute("SELECT tag_name from tags")]
-
-    # Checks if creator already exists in creator table
-    def check_creator_key(self, event=None):
-        value = self.entry_creator_name.get()
-
-        if value == '':
-            data = [" "]
-        else:
-            data = [" "]
-            for item in self.all_creators:
-                if value.lower() in item.lower():
-                    data.append(item)
-            if len(data) > 0:
-                data.remove(" ")
-        self.creator_name_list.config(value=data)
-        self.creator_name_list.current(0)
-
-    def check_image_creator_key(self, event=None):
-        value = self.entry_creator.get()
-
-        if value == '':
-            data = [" "]
-        else:
-            data = [" "]
-            for item in self.all_creators:
-                if value.lower() in item.lower():
-                    data.append(item)
-            if len(data) > 0:
-                data.remove(" ")
-        self.image_creator_name_list.config(value=data)
-        self.image_creator_name_list.current(0)
 
 if __name__ == "__main__":
     root = tk.Tk()
