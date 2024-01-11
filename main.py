@@ -102,6 +102,24 @@ class DatabaseApp:
         for row in rows:
             data_object.insert("", "end", iid=row[0], values=row)
 
+    def display_image_data(self):
+        # Clear existing data in the treeview
+        for row in self.image_tree.get_children():
+            self.image_tree.delete(row)
+
+        # Fetch data from the database and display it in the treeview
+        self.cursor.execute('''SELECT i.*, GROUP_CONCAT(tags.tag_name) as tags
+                            FROM images as i
+                            LEFT JOIN image_tags
+                            ON i.image_id = image_tags.image_id
+                            LEFT JOIN tags ON image_tags.tag_id = tags.tag_id
+                            GROUP BY i.image_id, i.filename, i.creator_id, i.source_url
+                            ''')
+        rows = self.cursor.fetchall()
+
+        for row in rows:
+            self.image_tree.insert("", "end", iid=row[0], values=row)
+
     def init_image_table(self):
         # Init Inputs
         self.label_filename = tk.Label(self.tab_images, text="Filename")
@@ -120,7 +138,7 @@ class DatabaseApp:
 
         self.button_insert_image = tk.Button(self.tab_images, text="Insert Data", command=self.insert_image_data)
 
-        self.image_table_cols = ("image_id", "filename", "creator", "source_url")
+        self.image_table_cols = ("image_id", "filename", "creator", "source_url", "tags")
         self.image_tree = ttk.Treeview(self.tab_images, columns=self.image_table_cols, show="headings")
         
         for col in self.image_table_cols:
@@ -149,7 +167,7 @@ class DatabaseApp:
         self.button_delete_image.grid(row=5, column=1, padx=10, pady=10)
 
         # Fetch and display existing data
-        self.display_data(self.image_tree, "images")
+        self.display_image_data()
 
     def init_creator_table(self):
         # Init Inputs
@@ -320,7 +338,7 @@ class DatabaseApp:
             # Commit changes
             self.conn.commit()
 
-        self.display_data(self.image_tree, "images")
+        self.display_image_data()
 
     # Deletes images by on press of "Delete" button on "images" tab
     def delete_image_data(self):
@@ -343,7 +361,7 @@ class DatabaseApp:
                     
                     # Commit change and refresh table
                     self.conn.commit()
-                    self.display_data(self.image_tree, "images")
+                    self.display_image_data()
             except:
                 pass
         # If rows not selected, notify user
