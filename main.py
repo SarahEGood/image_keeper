@@ -8,7 +8,7 @@ class DatabaseApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Image Keeper")
-        root.geometry('800x600')
+        root.geometry('900x600')
         
         # Create connection to db
         self.conn = sqlite3.connect('image_database.db')
@@ -242,21 +242,25 @@ class DatabaseApp:
         selected_creators = self.creator_tree.selection()
         number_selected = len(selected_creators)
 
-        # Warning message: Only proceed if user answers "yes"
-        try:
-            delete_confirm = messagebox.askquestion(title="Warning",
-                                                    message='''You are about to delete {} creator(s). This operation cannot be undone. Are you sure?'''.format(number_selected))
-            if delete_confirm=='yes':
-                # For all images selected, iterate and delete all
-                for creator in selected_creators:
-                    self.creator_tree.delete(creator)
-                    self.cursor.execute("DELETE FROM creators WHERE creator_id = ?", (creator,))
-                
-                # Commit change and refresh table
-                self.conn.commit()
-                self.display_data(self.creator_tree, "creators")
-        except:
-            pass
+        if (number_selected > 0):
+            # Warning message: Only proceed if user answers "yes"
+            try:
+                delete_confirm = messagebox.askquestion(title="Warning",
+                                                        message='''You are about to delete {} creator(s). This operation cannot be undone. Are you sure?'''.format(number_selected))
+                if delete_confirm=='yes':
+                    # For all images selected, iterate and delete all
+                    for creator in selected_creators:
+                        self.creator_tree.delete(creator)
+                        self.cursor.execute("DELETE FROM creators WHERE creator_id = ?", (creator,))
+                    
+                    # Commit change and refresh table
+                    self.conn.commit()
+                    self.display_data(self.creator_tree, "creators")
+            except:
+                pass
+                # If rows not selected, notify user
+        else:
+            messagebox.showerror(title="Error", message="No rows selected to delete.")
 
 # Basic CRUD Operations: image data
         
@@ -301,21 +305,26 @@ class DatabaseApp:
         selected_images = self.image_tree.selection()
         number_selected = len(selected_images)
 
-        # Warning message: Only proceed if user answers "yes"
-        try:
-            delete_confirm = messagebox.askquestion(title="Warning",
-                                                    message='''You are about to delete {} image(s). This operation cannot be undone. Are you sure?'''.format(number_selected))
-            if delete_confirm=='yes':
-                # For all images selected, iterate and delete all
-                for image in selected_images:
-                    self.image_tree.delete(image)
-                    self.cursor.execute("DELETE FROM images WHERE image_id = ?", (image,))
-                
-                # Commit change and refresh table
-                self.conn.commit()
-                self.display_data(self.image_tree, "images")
-        except:
-            pass
+        # Check if rows are selected first
+        if (number_selected > 0):
+            # Warning message: Only proceed if user answers "yes"
+            try:
+                delete_confirm = messagebox.askquestion(title="Warning",
+                                                        message='''You are about to delete {} image(s). This operation cannot be undone. Are you sure?'''.format(number_selected))
+                if delete_confirm=='yes':
+                    # For all images selected, iterate and delete all
+                    for image in selected_images:
+                        self.image_tree.delete(image)
+                        self.cursor.execute("DELETE FROM images WHERE image_id = ?", (image,))
+                    
+                    # Commit change and refresh table
+                    self.conn.commit()
+                    self.display_data(self.image_tree, "images")
+            except:
+                pass
+        # If rows not selected, notify user
+        else:
+            messagebox.showerror(title="Error", message="No rows selected to delete.")
 
     # Add tag data by pressing "submit"
     def insert_tag_data(self):
