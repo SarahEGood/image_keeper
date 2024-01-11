@@ -2,6 +2,7 @@ import sqlite3
 import tkinter as tk
 from tkinter import ttk, messagebox
 from ttkwidgets.autocomplete import AutocompleteEntry
+from helpers import *
 
 class DatabaseApp:
     def __init__(self, root):
@@ -104,6 +105,10 @@ class DatabaseApp:
         self.label_source = tk.Label(self.tab_images, text="Source URL")
         self.entry_source = tk.Entry(self.tab_images)
 
+        self.label_image_tags = tk.Label(self.tab_images, text="Tags")
+        self.entry_image_tags = AutocompleteMultiEntry(self.tab_images,
+                                                 completevalues=self.all_tags)
+
         self.button_insert_image = tk.Button(self.tab_images, text="Insert Data", command=self.insert_image_data)
 
         self.image_table_cols = ("image_id", "filename", "creator", "source_url")
@@ -118,18 +123,21 @@ class DatabaseApp:
         self.label_filename.grid(row=0, column=0, padx=10, pady=10)
         self.entry_filename.grid(row=0, column=1, padx=10, pady=10)
 
+        self.label_image_tags.grid(row=0, column=2, padx=10, pady=10)
+        self.entry_image_tags.grid(row=0, column=3, padx=10, pady=10)
+
         self.label_creator.grid(row=1, column=0, padx=10, pady=10)
         self.entry_creator.grid(row=1, column=1, padx=10, pady=10)
 
-        self.label_source.grid(row=3, column=0, padx=10, pady=10)
-        self.entry_source.grid(row=3, column=1, padx=10, pady=10)
+        self.label_source.grid(row=2, column=0, padx=10, pady=10)
+        self.entry_source.grid(row=2, column=1, padx=10, pady=10)
 
         # For table
-        self.button_insert_image.grid(row=4, column=0, columnspan=2, pady=10)
-        self.image_tree.grid(row=5, column=0, columnspan=2, padx=10, pady=10)
+        self.button_insert_image.grid(row=3, column=0, columnspan=2, pady=10)
+        self.image_tree.grid(row=4, column=0, columnspan=4, padx=10, pady=10)
 
         # For Editing and Deleting buttons
-        self.button_delete_image.grid(row=6, column=1, padx=10, pady=10)
+        self.button_delete_image.grid(row=5, column=1, padx=10, pady=10)
 
         # Fetch and display existing data
         self.display_data(self.image_tree, "images")
