@@ -19,10 +19,12 @@ class AutocompleteMultiEntry(AutocompleteEntry):
         _hits = []
         # Get current (last) entry (comma delinated)
         all_entries = self.get()
+        # Get all current entries as list and the current entry being typed
         current_entry_list = [s.strip() for s in all_entries.split(",")]
         current_entry = current_entry_list[-1].lower()
+        # Match case-insensitively and only add to hits if not already in list
         for element in self._completion_list:
-            if element.lower().startswith(current_entry) and element not in current_entry_list[:-1]:  # Match case-insensitively
+            if element.lower().startswith(current_entry) and element not in current_entry_list[:-1]: 
                 _hits.append(element)
         # if we have a new hit list, keep this in mind
         if _hits != self._hits:
