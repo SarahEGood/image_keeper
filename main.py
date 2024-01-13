@@ -32,6 +32,7 @@ class DatabaseApp:
             CREATE TABLE IF NOT EXISTS images (
                 image_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 filename TEXT NOT NULL,
+                directory_path TEXT,
                 creator_id INTEGER,
                 source_url TEXT,
                 FOREIGN KEY (creator_id) REFERENCES creators (creator_id)
@@ -108,8 +109,12 @@ class DatabaseApp:
             self.image_tree.delete(row)
 
         # Fetch data from the database and display it in the treeview
-        self.cursor.execute('''SELECT i.*, GROUP_CONCAT(tags.tag_name) as tags
+        self.cursor.execute('''SELECT i.image_id, i.filename,
+                            c.creator_name, i.source_url,
+                            GROUP_CONCAT(tags.tag_name) as tags
                             FROM images as i
+                            LEFT JOIN creators as c
+                            ON i.creator_id = c.creator_id
                             LEFT JOIN image_tags
                             ON i.image_id = image_tags.image_id
                             LEFT JOIN tags ON image_tags.tag_id = tags.tag_id
@@ -325,13 +330,14 @@ class DatabaseApp:
             self.conn.commit()
 
         # Handling tag data only if a tag was submitted
-        if len(tags) > 0:
-            # Get image id for the entry we just submitted
-            self.cursor.execute("SELECT image_id from images WHERE filename = ? AND creator_id = ?", (filename, id_result))
-            image_id_result = self.cursor.fetchone()[0]
-            # Get the tag id
-            for tag in tags:
-                self.cursor.execute("SELECT tag_id from tags WHERE tag_name = ?", (tag,))
+        # Get image id for the entry we just submitted
+        self.cursor.execute("SELECT image_id from images WHERE filename = ? AND creator_id = ?", (filename, id_result))
+        image_id_result = self.cursor.fetchone()[0]
+        # Get the tag id
+        for tag in tags:
+            self.cursor.execute("SELECT tag_id from tags WHERE tag_name = ?", (tag,))
+            tag_output = self.cursor.fetchone()
+            if tag_output:
                 tag_id = self.cursor.fetchone()[0]
                 self.cursor.execute("INSERT INTO image_tags (image_id, tag_id) VALUES (?, ?)", (image_id_result, tag_id))
                 print((image_id_result, tag_id))
