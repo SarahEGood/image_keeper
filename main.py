@@ -127,21 +127,7 @@ class DatabaseApp:
 
     def init_image_table(self):
         # Init Inputs
-        self.label_filename = tk.Label(self.tab_images, text="Filename")
-        self.entry_filename = tk.Entry(self.tab_images)
-
-        self.label_creator = tk.Label(self.tab_images, text="Creator")
-        self.entry_creator = AutocompleteEntry(self.tab_images,
-                                               completevalues=self.all_creators)
-
-        self.label_source = tk.Label(self.tab_images, text="Source URL")
-        self.entry_source = tk.Entry(self.tab_images)
-
-        self.label_image_tags = tk.Label(self.tab_images, text="Tags")
-        self.entry_image_tags = AutocompleteMultiEntry(self.tab_images,
-                                                 completevalues=self.all_tags)
-
-        self.button_insert_image = tk.Button(self.tab_images, text="Insert Data", command=self.insert_image_data)
+        self.button_insert_image_window = tk.Button(self.tab_images, text="Add Image", command=self.windowAddImage)
 
         self.image_table_cols = ("image_id", "filename", "creator", "source_url", "tags")
         self.image_tree = ttk.Treeview(self.tab_images, columns=self.image_table_cols, show="headings")
@@ -151,25 +137,12 @@ class DatabaseApp:
 
         self.button_delete_image = tk.Button(self.tab_images, text="Delete Entry", command=self.delete_image_data)
 
-        # Place on widget
-        self.label_filename.grid(row=0, column=0, padx=10, pady=10)
-        self.entry_filename.grid(row=0, column=1, padx=10, pady=10)
-
-        self.label_image_tags.grid(row=0, column=2, padx=10, pady=10)
-        self.entry_image_tags.grid(row=0, column=3, padx=10, pady=10)
-
-        self.label_creator.grid(row=1, column=0, padx=10, pady=10)
-        self.entry_creator.grid(row=1, column=1, padx=10, pady=10)
-
-        self.label_source.grid(row=2, column=0, padx=10, pady=10)
-        self.entry_source.grid(row=2, column=1, padx=10, pady=10)
-
         # For table
-        self.button_insert_image.grid(row=3, column=0, columnspan=2, pady=10)
-        self.image_tree.grid(row=4, column=0, columnspan=4, padx=10, pady=10)
+        self.button_insert_image_window.grid(row=0, column=0, columnspan=2, pady=10)
+        self.image_tree.grid(row=1, column=0, columnspan=4, padx=10, pady=10)
 
         # For Editing and Deleting buttons
-        self.button_delete_image.grid(row=5, column=1, padx=10, pady=10)
+        self.button_delete_image.grid(row=2, column=1, padx=10, pady=10)
 
         # Fetch and display existing data
         self.display_image_data()
@@ -410,6 +383,44 @@ class DatabaseApp:
     def init_lookup_lists(self):
         self.all_creators = [creator[0] for creator in self.cursor.execute("SELECT creator_name from creators")]
         self.all_tags = [tag[0] for tag in self.cursor.execute("SELECT tag_name from tags")]
+
+    def windowAddImage(self):
+        self.image_window = tk.Toplevel(root)
+
+        self.image_window.title("Add New Image")
+
+        self.image_window.geometry("600x400")
+
+        self.label_filename = tk.Label(self.image_window, text="Filename")
+        self.entry_filename = tk.Entry(self.image_window)
+
+        self.label_creator = tk.Label(self.image_window, text="Creator")
+        self.entry_creator = AutocompleteEntry(self.image_window,
+                                               completevalues=self.all_creators)
+
+        self.label_source = tk.Label(self.image_window, text="Source URL")
+        self.entry_source = tk.Entry(self.image_window)
+
+        self.label_image_tags = tk.Label(self.image_window, text="Tags")
+        self.entry_image_tags = AutocompleteMultiEntry(self.image_window,
+                                                 completevalues=self.all_tags)
+        
+        self.button_insert_image = tk.Button(self.image_window, text="Add Image", command=self.insert_image_data)
+        
+        # Place on widget
+        self.label_filename.grid(row=0, column=0, padx=10, pady=10)
+        self.entry_filename.grid(row=0, column=1, padx=10, pady=10)
+
+        self.label_image_tags.grid(row=0, column=2, padx=10, pady=10)
+        self.entry_image_tags.grid(row=0, column=3, padx=10, pady=10)
+
+        self.label_creator.grid(row=1, column=0, padx=10, pady=10)
+        self.entry_creator.grid(row=1, column=1, padx=10, pady=10)
+
+        self.label_source.grid(row=2, column=0, padx=10, pady=10)
+        self.entry_source.grid(row=2, column=1, padx=10, pady=10)
+
+        self.button_insert_image.grid(row=3, column=0, padx=10, pady=10)
 
 if __name__ == "__main__":
     root = tk.Tk()
