@@ -3,6 +3,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from ttkwidgets.autocomplete import AutocompleteEntry
 from helpers import *
+import os
+import shutil
 
 class DatabaseApp:
     def __init__(self, root):
@@ -20,6 +22,9 @@ class DatabaseApp:
 
         # Initalize UI elements
         self.init_ui_elements()
+
+        # Init settings
+        self.image_destination = "images"
 
     def create_tables(self):
         self.cursor.execute('''
@@ -271,7 +276,7 @@ class DatabaseApp:
         
     def insert_image_data(self):
         # Fetch information from inputs for new image
-        filename = self.entry_filename.get()
+        filepath = self.browse_label.cget("text").split(':')[-1]
         creator_name = self.entry_creator.get()
         source = self.entry_source.get()
         tags = [s.strip() for s in self.entry_image_tags.get().split(",")]
@@ -296,8 +301,11 @@ class DatabaseApp:
             # Convert creator_id result to integer from tuple object
             id_result = id_result[0]
 
+            destination_path = self.addToDirectory(filepath)
+            filename = os.path.basename(destination_path)
+
             # Insert the image data
-            self.cursor.execute("INSERT INTO images (filename, creator_id, source_url) VALUES (?, ?, ?)", (filename, id_result, source))
+            self.cursor.execute("INSERT INTO images (filename, creator_id, source_url, directory_path) VALUES (?, ?, ?, ?)", (filename, id_result, source, destination_path))
 
             # Commit the change
             self.conn.commit()
@@ -404,8 +412,8 @@ class DatabaseApp:
         self.image_window = tk.Toplevel(root)
 
         self.image_window.title("Add New Image")
-
         self.image_window.geometry("600x400")
+        self.image_window.attributes('-topmost', True)
 
         self.browse_label = tk.Label(self.image_window, text="Select File")
         self.browse_button = tk.Button(self.image_window, text="Browse", command=self.browseForImage)
@@ -430,28 +438,43 @@ class DatabaseApp:
         self.browse_label.grid(row=0, column=0, padx=10, pady=10)
         self.browse_button.grid(row=0, column=3, padx=10, pady=10)
 
-        self.label_filename.grid(row=1, column=0, padx=10, pady=10)
-        self.entry_filename.grid(row=1, column=1, padx=10, pady=10)
+        self.label_image_tags.grid(row=1, column=0, padx=10, pady=10)
+        self.entry_image_tags.grid(row=1, column=1, padx=10, pady=10)
 
-        self.label_image_tags.grid(row=1, column=2, padx=10, pady=10)
-        self.entry_image_tags.grid(row=1, column=3, padx=10, pady=10)
+        self.label_creator.grid(row=1, column=2, padx=10, pady=10)
+        self.entry_creator.grid(row=1, column=3, padx=10, pady=10)
 
-        self.label_creator.grid(row=2, column=0, padx=10, pady=10)
-        self.entry_creator.grid(row=2, column=1, padx=10, pady=10)
-
-        self.label_source.grid(row=2, column=2, padx=10, pady=10)
-        self.entry_source.grid(row=2, column=3, padx=10, pady=10)
+        self.label_source.grid(row=2, column=0, padx=10, pady=10)
+        self.entry_source.grid(row=2, column=1, padx=10, pady=10)
 
         self.button_insert_image.grid(row=3, column=0, padx=10, pady=10)
 
     def browseForImage(self):
         filename = filedialog.askopenfilename(initialdir="/",
                                               title = "Select an Image",
-                                              filetypes= [("all files",
+                                              filetypes= [("All Files",
                                                             "*.*"),
                                                             ("JPEG",
-                                                             "*.jpeg")])
+                                                             "*.jpeg")],
+                                               parent=self.image_window)
         self.browse_label.configure(text="File location: {}".format(filename))
+
+    # Copy file to images directory and return the new path of the file
+    def addToDirectory(self, filepath):
+        filename = os.path.basename(filepath)
+        filename_noext, extension = os.path.splitext(filename)
+        final_destination = os.path.join(self.image_destination, filename)
+        temp_filename = filename
+
+        counter = 1
+        while os.path.exists(final_destination):
+            temp_filename = "{}_{}{}".format(filename_noext, counter, extension)
+            final_destination = os.path.join(self.image_destination, temp_filename)
+            counter += 1
+
+        shutil.copy2(filepath, final_destination)
+
+        return final_destination
 
 if __name__ == "__main__":
     root = tk.Tk()
