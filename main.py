@@ -319,6 +319,12 @@ class DatabaseApp:
 
         self.display_image_data()
 
+        # Clear inputs
+        self.entry_filename.delete(0, "end")
+        self.entry_creator.delete(0, "end")
+        self.entry_image_tags.delete(0, "end")
+        self.entry_source.delete(0, "end")
+
     # Deletes images by on press of "Delete" button on "images" tab
     def delete_image_data(self):
 
