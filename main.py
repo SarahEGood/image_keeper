@@ -1,6 +1,6 @@
 import sqlite3
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from ttkwidgets.autocomplete import AutocompleteEntry
 from helpers import *
 
@@ -333,6 +333,7 @@ class DatabaseApp:
         self.entry_creator.delete(0, "end")
         self.entry_image_tags.delete(0, "end")
         self.entry_source.delete(0, "end")
+        self.browse_label.configure(text="Select File")
 
     # Deletes images by on press of "Delete" button on "images" tab
     def delete_image_data(self):
@@ -406,6 +407,9 @@ class DatabaseApp:
 
         self.image_window.geometry("600x400")
 
+        self.browse_label = tk.Label(self.image_window, text="Select File")
+        self.browse_button = tk.Button(self.image_window, text="Browse", command=self.browseForImage)
+
         self.label_filename = tk.Label(self.image_window, text="Filename")
         self.entry_filename = tk.Entry(self.image_window)
 
@@ -423,19 +427,31 @@ class DatabaseApp:
         self.button_insert_image = tk.Button(self.image_window, text="Add Image", command=self.insert_image_data)
         
         # Place on widget
-        self.label_filename.grid(row=0, column=0, padx=10, pady=10)
-        self.entry_filename.grid(row=0, column=1, padx=10, pady=10)
+        self.browse_label.grid(row=0, column=0, padx=10, pady=10)
+        self.browse_button.grid(row=0, column=3, padx=10, pady=10)
 
-        self.label_image_tags.grid(row=0, column=2, padx=10, pady=10)
-        self.entry_image_tags.grid(row=0, column=3, padx=10, pady=10)
+        self.label_filename.grid(row=1, column=0, padx=10, pady=10)
+        self.entry_filename.grid(row=1, column=1, padx=10, pady=10)
 
-        self.label_creator.grid(row=1, column=0, padx=10, pady=10)
-        self.entry_creator.grid(row=1, column=1, padx=10, pady=10)
+        self.label_image_tags.grid(row=1, column=2, padx=10, pady=10)
+        self.entry_image_tags.grid(row=1, column=3, padx=10, pady=10)
 
-        self.label_source.grid(row=2, column=0, padx=10, pady=10)
-        self.entry_source.grid(row=2, column=1, padx=10, pady=10)
+        self.label_creator.grid(row=2, column=0, padx=10, pady=10)
+        self.entry_creator.grid(row=2, column=1, padx=10, pady=10)
+
+        self.label_source.grid(row=2, column=2, padx=10, pady=10)
+        self.entry_source.grid(row=2, column=3, padx=10, pady=10)
 
         self.button_insert_image.grid(row=3, column=0, padx=10, pady=10)
+
+    def browseForImage(self):
+        filename = filedialog.askopenfilename(initialdir="/",
+                                              title = "Select an Image",
+                                              filetypes= [("all files",
+                                                            "*.*"),
+                                                            ("JPEG",
+                                                             "*.jpeg")])
+        self.browse_label.configure(text="File location: {}".format(filename))
 
 if __name__ == "__main__":
     root = tk.Tk()
