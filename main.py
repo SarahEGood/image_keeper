@@ -5,6 +5,7 @@ from ttkwidgets.autocomplete import AutocompleteEntry
 from helpers import *
 import os
 import shutil
+from datetime import datetime, timezone
 
 class DatabaseApp:
     def __init__(self, root):
@@ -40,6 +41,7 @@ class DatabaseApp:
                 directory_path TEXT,
                 creator_id INTEGER,
                 source_url TEXT,
+                date_added TEXT,
                 FOREIGN KEY (creator_id) REFERENCES creators (creator_id)
             )
         ''')
@@ -116,7 +118,8 @@ class DatabaseApp:
         # Fetch data from the database and display it in the treeview
         self.cursor.execute('''SELECT i.image_id, i.filename,
                             c.creator_name, i.source_url,
-                            GROUP_CONCAT(tags.tag_name) as tags
+                            GROUP_CONCAT(tags.tag_name) as tags,
+                            i.date_added
                             FROM images as i
                             LEFT JOIN creators as c
                             ON i.creator_id = c.creator_id
@@ -134,7 +137,7 @@ class DatabaseApp:
         # Init Inputs
         self.button_insert_image_window = tk.Button(self.tab_images, text="Add Image", command=self.windowAddImage)
 
-        self.image_table_cols = ("image_id", "filename", "creator", "source_url", "tags")
+        self.image_table_cols = ("image_id", "filename", "creator", "source_url", "tags", "date_added")
         self.image_tree = ttk.Treeview(self.tab_images, columns=self.image_table_cols, show="headings")
         
         for col in self.image_table_cols:
@@ -280,6 +283,7 @@ class DatabaseApp:
         creator_name = self.entry_creator.get()
         source = self.entry_source.get()
         tags = [s.strip() for s in self.entry_image_tags.get().split(",")]
+        current_datetime = datetime.now(timezone.utc)
 
         # Check if name is a non-empty string
         if not creator_name:
@@ -305,7 +309,8 @@ class DatabaseApp:
             filename = os.path.basename(destination_path)
 
             # Insert the image data
-            self.cursor.execute("INSERT INTO images (filename, creator_id, source_url, directory_path) VALUES (?, ?, ?, ?)", (filename, id_result, source, destination_path))
+            self.cursor.execute("INSERT INTO images (filename, creator_id, source_url, directory_path, date_added) VALUES (?, ?, ?, ?, ?)",
+                                (filename, id_result, source, destination_path, current_datetime))
 
             # Commit the change
             self.conn.commit()
