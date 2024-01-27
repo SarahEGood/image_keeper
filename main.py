@@ -1,8 +1,10 @@
 import sqlite3
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from ttkwidgets.autocomplete import AutocompleteEntry
 from helpers import *
+import os
+import shutil
 
 class DatabaseApp:
     def __init__(self, root):
@@ -20,6 +22,9 @@ class DatabaseApp:
 
         # Initalize UI elements
         self.init_ui_elements()
+
+        # Init settings
+        self.image_destination = "images"
 
     def create_tables(self):
         self.cursor.execute('''
@@ -127,21 +132,7 @@ class DatabaseApp:
 
     def init_image_table(self):
         # Init Inputs
-        self.label_filename = tk.Label(self.tab_images, text="Filename")
-        self.entry_filename = tk.Entry(self.tab_images)
-
-        self.label_creator = tk.Label(self.tab_images, text="Creator")
-        self.entry_creator = AutocompleteEntry(self.tab_images,
-                                               completevalues=self.all_creators)
-
-        self.label_source = tk.Label(self.tab_images, text="Source URL")
-        self.entry_source = tk.Entry(self.tab_images)
-
-        self.label_image_tags = tk.Label(self.tab_images, text="Tags")
-        self.entry_image_tags = AutocompleteMultiEntry(self.tab_images,
-                                                 completevalues=self.all_tags)
-
-        self.button_insert_image = tk.Button(self.tab_images, text="Insert Data", command=self.insert_image_data)
+        self.button_insert_image_window = tk.Button(self.tab_images, text="Add Image", command=self.windowAddImage)
 
         self.image_table_cols = ("image_id", "filename", "creator", "source_url", "tags")
         self.image_tree = ttk.Treeview(self.tab_images, columns=self.image_table_cols, show="headings")
@@ -151,25 +142,12 @@ class DatabaseApp:
 
         self.button_delete_image = tk.Button(self.tab_images, text="Delete Entry", command=self.delete_image_data)
 
-        # Place on widget
-        self.label_filename.grid(row=0, column=0, padx=10, pady=10)
-        self.entry_filename.grid(row=0, column=1, padx=10, pady=10)
-
-        self.label_image_tags.grid(row=0, column=2, padx=10, pady=10)
-        self.entry_image_tags.grid(row=0, column=3, padx=10, pady=10)
-
-        self.label_creator.grid(row=1, column=0, padx=10, pady=10)
-        self.entry_creator.grid(row=1, column=1, padx=10, pady=10)
-
-        self.label_source.grid(row=2, column=0, padx=10, pady=10)
-        self.entry_source.grid(row=2, column=1, padx=10, pady=10)
-
         # For table
-        self.button_insert_image.grid(row=3, column=0, columnspan=2, pady=10)
-        self.image_tree.grid(row=4, column=0, columnspan=4, padx=10, pady=10)
+        self.button_insert_image_window.grid(row=0, column=0, columnspan=2, pady=10)
+        self.image_tree.grid(row=1, column=0, columnspan=4, padx=10, pady=10)
 
         # For Editing and Deleting buttons
-        self.button_delete_image.grid(row=5, column=1, padx=10, pady=10)
+        self.button_delete_image.grid(row=2, column=1, padx=10, pady=10)
 
         # Fetch and display existing data
         self.display_image_data()
@@ -298,7 +276,7 @@ class DatabaseApp:
         
     def insert_image_data(self):
         # Fetch information from inputs for new image
-        filename = self.entry_filename.get()
+        filepath = self.browse_label.cget("text").split(':')[-1]
         creator_name = self.entry_creator.get()
         source = self.entry_source.get()
         tags = [s.strip() for s in self.entry_image_tags.get().split(",")]
@@ -323,8 +301,11 @@ class DatabaseApp:
             # Convert creator_id result to integer from tuple object
             id_result = id_result[0]
 
+            destination_path = self.addToDirectory(filepath)
+            filename = os.path.basename(destination_path)
+
             # Insert the image data
-            self.cursor.execute("INSERT INTO images (filename, creator_id, source_url) VALUES (?, ?, ?)", (filename, id_result, source))
+            self.cursor.execute("INSERT INTO images (filename, creator_id, source_url, directory_path) VALUES (?, ?, ?, ?)", (filename, id_result, source, destination_path))
 
             # Commit the change
             self.conn.commit()
@@ -337,14 +318,30 @@ class DatabaseApp:
         for tag in tags:
             self.cursor.execute("SELECT tag_id from tags WHERE tag_name = ?", (tag,))
             tag_output = self.cursor.fetchone()
+            print(tag_output)
             if tag_output:
+                tag_id = tag_output[0]
+                self.cursor.execute("INSERT INTO image_tags (image_id, tag_id) VALUES (?, ?)", (image_id_result, tag_id))
+                print((image_id_result, tag_id))
+            else:
+                self.cursor.execute("INSERT INTO tags (tag_name) VALUES (?)", (tag,))
+                self.cursor.execute("SELECT tag_id from tags WHERE tag_name = ?", (tag,))
                 tag_id = self.cursor.fetchone()[0]
+                print(tag_id)
                 self.cursor.execute("INSERT INTO image_tags (image_id, tag_id) VALUES (?, ?)", (image_id_result, tag_id))
                 print((image_id_result, tag_id))
             # Commit changes
             self.conn.commit()
 
         self.display_image_data()
+        self.display_data(self.tag_tree, "tags")
+
+        # Clear inputs
+        self.entry_filename.delete(0, "end")
+        self.entry_creator.delete(0, "end")
+        self.entry_image_tags.delete(0, "end")
+        self.entry_source.delete(0, "end")
+        self.browse_label.configure(text="Select File")
 
     # Deletes images by on press of "Delete" button on "images" tab
     def delete_image_data(self):
@@ -410,6 +407,74 @@ class DatabaseApp:
     def init_lookup_lists(self):
         self.all_creators = [creator[0] for creator in self.cursor.execute("SELECT creator_name from creators")]
         self.all_tags = [tag[0] for tag in self.cursor.execute("SELECT tag_name from tags")]
+
+    def windowAddImage(self):
+        self.image_window = tk.Toplevel(root)
+
+        self.image_window.title("Add New Image")
+        self.image_window.geometry("600x400")
+        self.image_window.attributes('-topmost', True)
+
+        self.browse_label = tk.Label(self.image_window, text="Select File")
+        self.browse_button = tk.Button(self.image_window, text="Browse", command=self.browseForImage)
+
+        self.label_filename = tk.Label(self.image_window, text="Filename")
+        self.entry_filename = tk.Entry(self.image_window)
+
+        self.label_creator = tk.Label(self.image_window, text="Creator")
+        self.entry_creator = AutocompleteEntry(self.image_window,
+                                               completevalues=self.all_creators)
+
+        self.label_source = tk.Label(self.image_window, text="Source URL")
+        self.entry_source = tk.Entry(self.image_window)
+
+        self.label_image_tags = tk.Label(self.image_window, text="Tags")
+        self.entry_image_tags = AutocompleteMultiEntry(self.image_window,
+                                                 completevalues=self.all_tags)
+        
+        self.button_insert_image = tk.Button(self.image_window, text="Add Image", command=self.insert_image_data)
+        
+        # Place on widget
+        self.browse_label.grid(row=0, column=0, padx=10, pady=10)
+        self.browse_button.grid(row=0, column=3, padx=10, pady=10)
+
+        self.label_image_tags.grid(row=1, column=0, padx=10, pady=10)
+        self.entry_image_tags.grid(row=1, column=1, padx=10, pady=10)
+
+        self.label_creator.grid(row=1, column=2, padx=10, pady=10)
+        self.entry_creator.grid(row=1, column=3, padx=10, pady=10)
+
+        self.label_source.grid(row=2, column=0, padx=10, pady=10)
+        self.entry_source.grid(row=2, column=1, padx=10, pady=10)
+
+        self.button_insert_image.grid(row=3, column=0, padx=10, pady=10)
+
+    def browseForImage(self):
+        filename = filedialog.askopenfilename(initialdir="/",
+                                              title = "Select an Image",
+                                              filetypes= [("All Files",
+                                                            "*.*"),
+                                                            ("JPEG",
+                                                             "*.jpeg")],
+                                               parent=self.image_window)
+        self.browse_label.configure(text="File location: {}".format(filename))
+
+    # Copy file to images directory and return the new path of the file
+    def addToDirectory(self, filepath):
+        filename = os.path.basename(filepath)
+        filename_noext, extension = os.path.splitext(filename)
+        final_destination = os.path.join(self.image_destination, filename)
+        temp_filename = filename
+
+        counter = 1
+        while os.path.exists(final_destination):
+            temp_filename = "{}_{}{}".format(filename_noext, counter, extension)
+            final_destination = os.path.join(self.image_destination, temp_filename)
+            counter += 1
+
+        shutil.copy2(filepath, final_destination)
+
+        return final_destination
 
 if __name__ == "__main__":
     root = tk.Tk()
