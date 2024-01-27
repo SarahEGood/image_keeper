@@ -310,14 +310,23 @@ class DatabaseApp:
         for tag in tags:
             self.cursor.execute("SELECT tag_id from tags WHERE tag_name = ?", (tag,))
             tag_output = self.cursor.fetchone()
+            print(tag_output)
             if tag_output:
+                tag_id = tag_output[0]
+                self.cursor.execute("INSERT INTO image_tags (image_id, tag_id) VALUES (?, ?)", (image_id_result, tag_id))
+                print((image_id_result, tag_id))
+            else:
+                self.cursor.execute("INSERT INTO tags (tag_name) VALUES (?)", (tag,))
+                self.cursor.execute("SELECT tag_id from tags WHERE tag_name = ?", (tag,))
                 tag_id = self.cursor.fetchone()[0]
+                print(tag_id)
                 self.cursor.execute("INSERT INTO image_tags (image_id, tag_id) VALUES (?, ?)", (image_id_result, tag_id))
                 print((image_id_result, tag_id))
             # Commit changes
             self.conn.commit()
 
         self.display_image_data()
+        self.display_data(self.tag_tree, "tags")
 
         # Clear inputs
         self.entry_filename.delete(0, "end")
