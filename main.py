@@ -140,6 +140,7 @@ class DatabaseApp:
         for col in self.image_table_cols:
             self.image_tree.heading(col, text=col)
 
+        self.button_edit_image = tk.Button(self.tab_images, text="Edit Entry", command=self.editImageWindow)
         self.button_delete_image = tk.Button(self.tab_images, text="Delete Entry", command=self.delete_image_data)
 
         # For table
@@ -147,7 +148,8 @@ class DatabaseApp:
         self.image_tree.grid(row=1, column=0, columnspan=4, padx=10, pady=10)
 
         # For Editing and Deleting buttons
-        self.button_delete_image.grid(row=2, column=1, padx=10, pady=10)
+        self.button_edit_image.grid(row=2, column=0, padx=10, pady=10)
+        self.button_delete_image.grid(row=2, column=2, padx=10, pady=10)
 
         # Fetch and display existing data
         self.display_image_data()
@@ -408,7 +410,8 @@ class DatabaseApp:
         self.all_creators = [creator[0] for creator in self.cursor.execute("SELECT creator_name from creators")]
         self.all_tags = [tag[0] for tag in self.cursor.execute("SELECT tag_name from tags")]
 
-    def windowAddImage(self):
+    # Add Image function (can switch to edit mode)
+    def windowAddImage(self, mode="Add", selection = None):
         self.image_window = tk.Toplevel(root)
 
         self.image_window.title("Add New Image")
@@ -432,7 +435,11 @@ class DatabaseApp:
         self.entry_image_tags = AutocompleteMultiEntry(self.image_window,
                                                  completevalues=self.all_tags)
         
-        self.button_insert_image = tk.Button(self.image_window, text="Add Image", command=self.insert_image_data)
+        if mode == "Add":
+            self.button_insert_image = tk.Button(self.image_window, text="Add Image", command=self.insert_image_data)
+        elif mode == "Edit":
+            self.button_insert_image = tk.Button(self.image_window, text="Edit Image", command=self.insert_image_data)
+            print(selection)
         
         # Place on widget
         self.browse_label.grid(row=0, column=0, padx=10, pady=10)
@@ -475,6 +482,22 @@ class DatabaseApp:
         shutil.copy2(filepath, final_destination)
 
         return final_destination
+    
+    def editImageWindow(self):
+
+        # Retrieve id of selected image entry/entries
+        selected_image = self.image_tree.selection()
+
+        number_selected = len(selected_image)
+
+        if (number_selected > 1):
+            messagebox.showerror(title="Error",
+                                  message="Must select only one image.")
+        elif (number_selected == 0):
+            messagebox.showerror(title="Error",
+                                  message="You must select an image entry to edit.")
+        else:
+            self.windowAddImage(mode="Edit", selection = self.image_tree.item(selected_image, "values"))
 
 if __name__ == "__main__":
     root = tk.Tk()
