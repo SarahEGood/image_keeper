@@ -5,6 +5,8 @@ from ttkwidgets.autocomplete import AutocompleteEntry
 from helpers import *
 import os
 import shutil
+from datetime import datetime, timezone
+from tkcalendar import DateEntry
 
 class DatabaseApp:
     def __init__(self, root):
@@ -40,6 +42,8 @@ class DatabaseApp:
                 directory_path TEXT,
                 creator_id INTEGER,
                 source_url TEXT,
+                date_added TEXT,
+                date_uploaded TEXT,
                 FOREIGN KEY (creator_id) REFERENCES creators (creator_id)
             )
         ''')
@@ -116,7 +120,8 @@ class DatabaseApp:
         # Fetch data from the database and display it in the treeview
         self.cursor.execute('''SELECT i.image_id, i.filename,
                             c.creator_name, i.source_url,
-                            GROUP_CONCAT(tags.tag_name) as tags
+                            GROUP_CONCAT(tags.tag_name) as tags,
+                            i.date_added
                             FROM images as i
                             LEFT JOIN creators as c
                             ON i.creator_id = c.creator_id
@@ -134,7 +139,7 @@ class DatabaseApp:
         # Init Inputs
         self.button_insert_image_window = tk.Button(self.tab_images, text="Add Image", command=self.windowAddImage)
 
-        self.image_table_cols = ("image_id", "filename", "creator", "source_url", "tags")
+        self.image_table_cols = ("image_id", "filename", "creator", "source_url", "tags", "date_added")
         self.image_tree = ttk.Treeview(self.tab_images, columns=self.image_table_cols, show="headings")
         
         for col in self.image_table_cols:
@@ -282,12 +287,17 @@ class DatabaseApp:
         creator_name = self.entry_creator.get()
         source = self.entry_source.get()
         tags = [s.strip() for s in self.entry_image_tags.get().split(",")]
+        current_datetime = datetime.now(timezone.utc)
+        upload_date = self.entry_dateadd.get()
 
         # Check if name is a non-empty string
         if not creator_name:
             messagebox.showerror(title="Error",
                                   message="Creator name cannot be empty.")
             
+        elif not filepath:
+            messagebox.showerror(title="Error",
+                                  message="You must select an image.")
         else:
             # Look up the creator id by using given creator name
             self.cursor.execute("SELECT creator_id FROM creators WHERE creator_name = ?", (creator_name,))
@@ -307,7 +317,8 @@ class DatabaseApp:
             filename = os.path.basename(destination_path)
 
             # Insert the image data
-            self.cursor.execute("INSERT INTO images (filename, creator_id, source_url, directory_path) VALUES (?, ?, ?, ?)", (filename, id_result, source, destination_path))
+            self.cursor.execute("INSERT INTO images (filename, creator_id, source_url, directory_path, date_added, date_uploaded) VALUES (?, ?, ?, ?, ?, ?)",
+                                (filename, id_result, source, destination_path, current_datetime, upload_date))
 
             # Commit the change
             self.conn.commit()
@@ -431,6 +442,9 @@ class DatabaseApp:
         self.label_source = tk.Label(self.image_window, text="Source URL")
         self.entry_source = tk.Entry(self.image_window)
 
+        self.label_dateadd = tk.Label(self.image_window, text="Upload Date")
+        self.entry_dateadd = DateEntry(self.image_window)
+
         self.label_image_tags = tk.Label(self.image_window, text="Tags")
         self.entry_image_tags = AutocompleteMultiEntry(self.image_window,
                                                  completevalues=self.all_tags)
@@ -453,6 +467,9 @@ class DatabaseApp:
 
         self.label_source.grid(row=2, column=0, padx=10, pady=10)
         self.entry_source.grid(row=2, column=1, padx=10, pady=10)
+
+        self.label_dateadd.grid(row=2, column=2, padx=10, pady=10)
+        self.entry_dateadd.grid(row=2, column=3, padx=10, pady=10)
 
         self.button_insert_image.grid(row=3, column=0, padx=10, pady=10)
 
