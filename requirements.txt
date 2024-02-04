@@ -1,0 +1,5 @@
+Babel==2.14.0
+helpers==0.2.0
+pillow==10.2.0
+tkcalendar==1.6.1
+ttkwidgets==0.13.0
