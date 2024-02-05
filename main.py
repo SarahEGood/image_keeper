@@ -145,6 +145,7 @@ class DatabaseApp:
         for col in self.image_table_cols:
             self.image_tree.heading(col, text=col)
 
+        self.button_edit_image = tk.Button(self.tab_images, text="Edit Entry", command=self.editImageWindow)
         self.button_delete_image = tk.Button(self.tab_images, text="Delete Entry", command=self.delete_image_data)
 
         # For table
@@ -152,7 +153,8 @@ class DatabaseApp:
         self.image_tree.grid(row=1, column=0, columnspan=4, padx=10, pady=10)
 
         # For Editing and Deleting buttons
-        self.button_delete_image.grid(row=2, column=1, padx=10, pady=10)
+        self.button_edit_image.grid(row=2, column=0, padx=10, pady=10)
+        self.button_delete_image.grid(row=2, column=2, padx=10, pady=10)
 
         # Fetch and display existing data
         self.display_image_data()
@@ -278,7 +280,7 @@ class DatabaseApp:
             messagebox.showerror(title="Error", message="No rows selected to delete.")
 
 # Basic CRUD Operations: image data
-        
+
     def insert_image_data(self):
         # Fetch information from inputs for new image
         filepath = self.browse_label.cget("text").split(':')[-1]
@@ -354,6 +356,82 @@ class DatabaseApp:
         self.entry_source.delete(0, "end")
         self.browse_label.configure(text="Select File")
 
+    def edit_image_data(self):
+        # Fetch information from inputs for new image
+        image_id = self.selected_image_id
+        creator_name = self.entry_creator.get()
+        source = self.entry_source.get()
+        tags = [s.strip() for s in self.entry_image_tags.get().split(",")]
+        current_datetime = datetime.now(timezone.utc)
+        upload_date = self.entry_dateadd.get()
+
+        # Check if name is a non-empty string
+        if not creator_name:
+            messagebox.showerror(title="Error",
+                                  message="Creator name cannot be empty.")
+        else:
+            # Look up the creator id by using given creator name
+            self.cursor.execute("SELECT creator_id FROM creators WHERE creator_name = ?", (creator_name,))
+            id_result = self.cursor.fetchone()
+
+            # If the creator_id doesn't exist for a creator name, make an entry in the creator table
+            #    and use this new id when creating the entry
+            if not id_result:
+                self.cursor.execute("INSERT INTO creators (creator_name) VALUES (?)", (creator_name,))
+                self.cursor.execute("SELECT creator_id FROM creators WHERE creator_name = ?", (creator_name,))
+                id_result = self.cursor.fetchone()
+            
+            # Convert creator_id result to integer from tuple object
+            id_result = id_result[0]
+
+            # Insert the image data
+            self.cursor.execute("UPDATE images SET creator_id = ?, source_url = ?, date_added = ?, date_uploaded = ? WHERE image_id = ?",
+                                (id_result, source, current_datetime, upload_date, image_id))
+
+            # Commit the change
+            self.conn.commit()
+
+        new_tag_ind = []
+        # Check if any tags must be added to image_tags
+        for tag in tags:
+            self.cursor.execute("SELECT tag_id FROM tags WHERE tag_name = ?", (tag,))
+            tag_output = self.cursor.fetchone()
+            print(tag_output)
+            # If tag doesn't exist, add to both tables
+            if not tag_output:
+                self.cursor.execute("INSERT INTO tags (tag_name) VALUES (?)", (tag,))
+                self.cursor.execute("SELECT tag_id from tags WHERE tag_name = ?", (tag,))
+                tag_id = self.cursor.fetchone()[0]
+                new_tag_ind += [tag_id]
+            else:
+            # If tag exists in tag table, check if in image_tags
+                tag_id = tag_output[0]
+                new_tag_ind += [tag_id]
+            
+            # Commit changes
+            self.conn.commit()
+        
+        # Build list of tag indicies
+        self.cursor.execute("SELECT tag_id FROM image_tags WHERE image_id = ?", (image_id,))
+        existing_tags = self.cursor.fetchall()
+        existing_tags = [x[0] for x in existing_tags]
+        print("existing tags: " + str(existing_tags))
+        print(new_tag_ind)
+
+        # If tag is listed in existing but not new, delete
+        for tag in existing_tags:
+            if tag not in new_tag_ind:
+                self.cursor.execute("DELETE FROM image_tags WHERE image_id = ? AND tag_id = ?", (image_id, tag))
+
+        # If tag is listed in new but not existing, add
+        for tag in new_tag_ind:
+            if tag not in existing_tags:
+                self.cursor.execute("INSERT INTO image_tags (image_id, tag_id) VALUES (?, ?)", (image_id, tag_id))
+        self.conn.commit()
+
+        self.display_image_data()
+        self.display_data(self.tag_tree, "tags")
+
     # Deletes images by on press of "Delete" button on "images" tab
     def delete_image_data(self):
 
@@ -372,6 +450,7 @@ class DatabaseApp:
                     for image in selected_images:
                         self.image_tree.delete(image)
                         self.cursor.execute("DELETE FROM images WHERE image_id = ?", (image,))
+                        self.cursor.execute("DELETE FROM image_tags WHERE image_id = ?", (image,))
                     
                     # Commit change and refresh table
                     self.conn.commit()
@@ -419,18 +498,27 @@ class DatabaseApp:
         self.all_creators = [creator[0] for creator in self.cursor.execute("SELECT creator_name from creators")]
         self.all_tags = [tag[0] for tag in self.cursor.execute("SELECT tag_name from tags")]
 
-    def windowAddImage(self):
+    # Add Image function (can switch to edit mode)
+    def windowAddImage(self, mode="Add", selection = None):
         self.image_window = tk.Toplevel(root)
 
-        self.image_window.title("Add New Image")
+        if mode == "Add":
+            self.image_window.title("Add New Image")
+        else:
+            self.image_window.title("Edit Image")
         self.image_window.geometry("600x400")
         self.image_window.attributes('-topmost', True)
 
-        self.browse_label = tk.Label(self.image_window, text="Select File")
-        self.browse_button = tk.Button(self.image_window, text="Browse", command=self.browseForImage)
+        row_offset = 0
 
-        self.label_filename = tk.Label(self.image_window, text="Filename")
-        self.entry_filename = tk.Entry(self.image_window)
+        if mode == "Add":
+            row_offset = 1
+
+            self.browse_label = tk.Label(self.image_window, text="Select File")
+            self.browse_button = tk.Button(self.image_window, text="Browse", command=self.browseForImage)
+
+            self.label_filename = tk.Label(self.image_window, text="Filename")
+            self.entry_filename = tk.Entry(self.image_window)
 
         self.label_creator = tk.Label(self.image_window, text="Creator")
         self.entry_creator = AutocompleteEntry(self.image_window,
@@ -445,26 +533,40 @@ class DatabaseApp:
         self.label_image_tags = tk.Label(self.image_window, text="Tags")
         self.entry_image_tags = AutocompleteMultiEntry(self.image_window,
                                                  completevalues=self.all_tags)
-        
-        self.button_insert_image = tk.Button(self.image_window, text="Add Image", command=self.insert_image_data)
+
+        # If editing an existing image, fill in existing information
+        if selection:
+            image_info = self.fetchImage(selection)
+            self.selected_image_id = image_info[0]
+            self.entry_creator.insert(0, image_info[3])
+            self.entry_source.insert(0, image_info[4])
+            self.entry_dateadd.delete(0, tk.END)
+            self.entry_dateadd.insert(0, image_info[6])
+            self.entry_image_tags.insert(0, image_info[-1])         
+  
+        if mode == "Add":
+            self.button_insert_image = tk.Button(self.image_window, text="Add Image", command=self.insert_image_data)
+        elif mode == "Edit":
+            self.button_insert_image = tk.Button(self.image_window, text="Edit Image", command=self.edit_image_data)
         
         # Place on widget
-        self.browse_label.grid(row=0, column=0, padx=10, pady=10)
-        self.browse_button.grid(row=0, column=3, padx=10, pady=10)
+        if mode == "Add":
+            self.browse_label.grid(row=0, column=0, padx=10, pady=10)
+            self.browse_button.grid(row=0, column=3, padx=10, pady=10)
 
-        self.label_image_tags.grid(row=1, column=0, padx=10, pady=10)
-        self.entry_image_tags.grid(row=1, column=1, padx=10, pady=10)
+        self.label_image_tags.grid(row=0+row_offset, column=0, padx=10, pady=10)
+        self.entry_image_tags.grid(row=0+row_offset, column=1, padx=10, pady=10)
 
-        self.label_creator.grid(row=1, column=2, padx=10, pady=10)
-        self.entry_creator.grid(row=1, column=3, padx=10, pady=10)
+        self.label_creator.grid(row=0+row_offset, column=2, padx=10, pady=10)
+        self.entry_creator.grid(row=0+row_offset, column=3, padx=10, pady=10)
 
-        self.label_source.grid(row=2, column=0, padx=10, pady=10)
-        self.entry_source.grid(row=2, column=1, padx=10, pady=10)
+        self.label_source.grid(row=1+row_offset, column=0, padx=10, pady=10)
+        self.entry_source.grid(row=1+row_offset, column=1, padx=10, pady=10)
 
-        self.label_dateadd.grid(row=2, column=2, padx=10, pady=10)
-        self.entry_dateadd.grid(row=2, column=3, padx=10, pady=10)
+        self.label_dateadd.grid(row=1+row_offset, column=2, padx=10, pady=10)
+        self.entry_dateadd.grid(row=1+row_offset, column=3, padx=10, pady=10)
 
-        self.button_insert_image.grid(row=3, column=0, padx=10, pady=10)
+        self.button_insert_image.grid(row=2+row_offset, column=0, padx=10, pady=10)
 
     def browseForImage(self):
         filename = filedialog.askopenfilename(initialdir="/",
@@ -492,6 +594,38 @@ class DatabaseApp:
         shutil.copy2(filepath, final_destination)
 
         return final_destination
+    
+    def editImageWindow(self):
+
+        # Retrieve id of selected image entry/entries
+        selected_image = self.image_tree.selection()
+
+        number_selected = len(selected_image)
+
+        if (number_selected > 1):
+            messagebox.showerror(title="Error",
+                                  message="Must select only one image.")
+        elif (number_selected == 0):
+            messagebox.showerror(title="Error",
+                                  message="You must select an image entry to edit.")
+        else:
+            self.windowAddImage(mode="Edit", selection = selected_image[0])
+
+    def fetchImage(self, image_id):
+        im_info = self.cursor.execute("SELECT * FROM images WHERE image_id = ?", (image_id,)).fetchone()
+        image_info = list(im_info)
+        creator_id = image_info[3]
+        creator_info = self.cursor.execute("SELECT creator_name FROM creators WHERE creator_id = ?", (creator_id,)).fetchone()
+        image_info[3] = creator_info[0]
+        tag_ids = self.cursor.execute("SELECT tag_id FROM image_tags where image_id = ?", (image_id,)).fetchall()
+        tag_string = ''
+        for tag in tag_ids:
+            tag_name = self.cursor.execute("SELECT tag_name FROM tags where tag_id = ?", (tag[0],)).fetchone()
+            tag_string += tag_name[0] + ','
+        if len(tag_string) > 0:
+            tag_string = tag_string[:-1]
+        image_info = image_info + [tag_string]
+        return image_info
 
 if __name__ == "__main__":
     root = tk.Tk()
