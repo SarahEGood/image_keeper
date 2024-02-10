@@ -7,6 +7,8 @@ import os
 import shutil
 from datetime import datetime, timezone
 from tkcalendar import DateEntry
+from PIL import Image
+import subprocess
 
 class DatabaseApp:
     def __init__(self, root):
@@ -44,6 +46,7 @@ class DatabaseApp:
                 source_url TEXT,
                 date_added TEXT,
                 date_uploaded TEXT,
+                thumbnail_path TEXT,
                 FOREIGN KEY (creator_id) REFERENCES creators (creator_id)
             )
         ''')
@@ -316,9 +319,11 @@ class DatabaseApp:
             destination_path = self.addToDirectory(filepath)
             filename = os.path.basename(destination_path)
 
+            thumbnail_path = self.createThumbnail(destination_path, "images/thumbnails")
+
             # Insert the image data
-            self.cursor.execute("INSERT INTO images (filename, creator_id, source_url, directory_path, date_added, date_uploaded) VALUES (?, ?, ?, ?, ?, ?)",
-                                (filename, id_result, source, destination_path, current_datetime, upload_date))
+            self.cursor.execute("INSERT INTO images (filename, creator_id, source_url, directory_path, date_added, date_uploaded, thumbnail_path) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                (filename, id_result, source, destination_path, current_datetime, upload_date, thumbnail_path))
 
             # Commit the change
             self.conn.commit()
@@ -626,6 +631,28 @@ class DatabaseApp:
             tag_string = tag_string[:-1]
         image_info = image_info + [tag_string]
         return image_info
+    
+    def createThumbnail(self, image_path, thumbnail_dir):
+        image_name = os.path.basename(image_path)
+        name_only, image_ext = image_name.split('.')
+        thumbnail_path = os.path.join(thumbnail_dir, name_only + '.png')
+
+        # Generate Thumbnail depending on file
+        if image_ext.lower() in ['jpg','jpeg','png','gif','tif']:
+            image = Image.open(image_path)
+            max_size = (100,100)
+            image.thumbnail(max_size)
+            image.save(thumbnail_path)
+        elif image_ext.lower() in ['mp4','avi','mkv']:
+            subprocess.call(['ffmpeg.exe', '-i', image_path, '-ss', '00:00:00.000', '-vframes', '1', thumbnail_path])
+            image = Image.open(thumbnail_path)
+            max_size = (100,100)
+            image.thumbnail(max_size)
+            image.save(thumbnail_path)
+        else:
+            pass
+
+        return thumbnail_path
 
 if __name__ == "__main__":
     root = tk.Tk()
